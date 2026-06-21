@@ -3,7 +3,7 @@
 # ----------
 # imports
 
-import wave
+import threading
 from io import BytesIO
 from pathlib import Path
 
@@ -12,7 +12,6 @@ import miniaudio
 import numpy as np
 import soundfile as sf
 from PIL import Image
-from scipy.io import wavfile
 
 # ----------
 # main class
@@ -25,9 +24,9 @@ class FileConverter:
         self.input_ext = input_ext.lower().lstrip(".")
         self.output_ext = output_ext.lower().lstrip(".")
 
-    # helper method to get the soundfile format for the output file
+    # helper method to get the audio format for the output file
     @staticmethod
-    def _soundfile_format(ext: str) -> str:
+    def _audio_format(ext: str) -> str:
         formats = {
             "wav": "WAV",
             "flac": "FLAC",
@@ -35,87 +34,129 @@ class FileConverter:
         }
 
         if ext not in formats:
-            raise ValueError(f"Formato de áudio não suportado sem FFmpeg: {ext}")
+            raise ValueError(f"Unsupported audio format: {ext}")
 
         return formats[ext]
 
-    def convert_image(self):
-        # open the image file
-        img = Image.open(self.input_ext)
+    # helper method to get the image format for the output file
+    @staticmethod
+    def _image_format(ext: str) -> str:
+        formats = {
+            "png": "PNG",
+            "jpg": "JPG",
+            "webp": "WEBP",
+            "avif": "AVIF",
+        }
 
-        # convert the image to RGB mode
-        img = img.convert("RGB")
+        return formats[ext]
 
-        # save the converted image to the output path
-        img.save(self.output_ext)
+    # ----------
+    # audio
 
-    def convert_office(self):
-        # open the office file
-        doc = Document(self.input_ext)
-
-        # convert the office file to the output path
-        doc.save(self.output_ext)
-
-    def convert_audio(self):
+    def _decode_audio(self):
         """
-        the objective is to not use ffmpeg, since it requires user installation
-        that makes the function more complex, since it requires different logic
-        and libraries for different audio formats:
-            MP3 to other formats: miniaudio with numpy
-            Other formats to MP3: lameenc with wave
-            else: soundfile with numpy
-        """
+        Decode the input file to int16 PCM + sample_rate.
 
-        # read the input file into memory
+        MP3 goes through miniaudio because libsndfile (used by soundfile)
+        doesn't decode MP3 reliably in the wheels distributed via pip.
+        WAV, FLAC and OGG are read directly by soundfile, which already
+        knows how to open those containers natively - no need for the
+        wave module.
+        """
         input_bytes = self.input_file.read()
-        output = BytesIO()
 
-        if self.input_ext.endswith("mp3"):
-            # decode the MP3 file
+        if self.input_ext == "mp3":
             decoded = miniaudio.decode(
-                input_bytes,
-                output_format=miniaudio.SampleFormat.SIGNED16,
+                input_bytes, output_format=miniaudio.SampleFormat.SIGNED16
             )
-
-            # convert the decoded samples to the output format
             samples = np.frombuffer(decoded.samples, dtype=np.int16)
-
             if decoded.nchannels > 1:
                 samples = samples.reshape(-1, decoded.nchannels)
+            return samples, decoded.sample_rate
 
-            # save the samples to the output path
-            sf.write(
-                output,
-                samples,
-                decoded.sample_rate,
-                format=self._soundfile_format(self.output_ext),
-            )
+        samples, sample_rate = sf.read(BytesIO(input_bytes), dtype="int16")
+        return samples, sample_rate
 
+    def _write_audio(self, samples, sample_rate):
+        """
+        Write the decoded samples to the output format (WAV/FLAC/OGG).
+
+        OGG runs in a separate thread with a larger stack because of a
+        known libsndfile bug on Windows: the Vorbis encoder overflows a
+        Windows thread's default 1 MB stack when writing audio with many
+        frames, crashing the whole process with no traceback.
+        Source: github.com/bastibe/python-soundfile/issues/396
+        """
+        audio_format = self._audio_format(self.output_ext)
+        output = BytesIO()
+
+        if self.output_ext != "ogg":
+            sf.write(output, samples, sample_rate, format=audio_format)
             output.seek(0)
             return output
 
-        # elif self.output_ext.endswith(".mp3"):
-        #     # open the file and extract properties
-        #     with wave.open(output, "rb") as audio_file:
-        #         sample_rate = audio_file.getframerate()
-        #         nchannels = audio_file.getnchannels()
-        #         samples = audio_file.readframes(audio_file.getnframes())
+        errors = []
 
-        #     # initialize the MP3 encoder
-        #     mp3_encoder = lameenc.Encoder()
-        #     mp3_encoder.set_sample_rate(sample_rate)
-        #     mp3_encoder.set_channels(nchannels)
-        #     mp3_encoder.set_quality(2)
+        def _run():
+            try:
+                sf.write(output, samples, sample_rate, format=audio_format)
+            except Exception as exc:
+                errors.append(exc)
 
-        #     # process and stream data to MP3 file
-        #     with open(self.output_ext, "wb") as mp3_file:
-        #         mp3_file.write(mp3_encoder.encode(samples))
-        #         mp3_file.write(mp3_encoder.flush())
+        previous_stack_size = threading.stack_size()
+        threading.stack_size(16 * 1024 * 1024)  # 16 MB
+        try:
+            t = threading.Thread(target=_run)
+            t.start()
+            t.join()
+        finally:
+            threading.stack_size(previous_stack_size)
 
-        else:
-            # # read the audio file into a numpy array
-            # data, sample_rate = sf.read(self.input_ext)
+        if errors:
+            raise errors[0]
 
-            # # save the data to the output path
-            # sf.write(self.output_ext, data, sample_rate)
-            raise NotImplementedError(f"Unsupported output format: {self.output_ext}")
+        output.seek(0)
+        return output
+
+    def _encode_mp3(self, samples, sample_rate):
+        if samples.dtype != np.int16:
+            samples = samples.astype(np.int16)
+
+        nchannels = samples.shape[1] if samples.ndim > 1 else 1
+
+        encoder = lameenc.Encoder()
+        encoder.set_in_sample_rate(sample_rate)
+        encoder.set_channels(nchannels)
+        encoder.set_quality(2)
+        encoder.set_bit_rate(192)
+
+        output = BytesIO()
+        output.write(encoder.encode(samples.tobytes()))
+        output.write(encoder.flush())
+        output.seek(0)
+        return output
+
+    def convert_audio(self):
+        samples, sample_rate = self._decode_audio()
+
+        if self.output_ext == "mp3":
+            return self._encode_mp3(samples, sample_rate)
+
+        return self._write_audio(samples, sample_rate)
+
+    # ----------
+    # image - still has the original bugs (Image.open/img.save receiving
+    # extension strings instead of the file), not touched in this round
+
+    def convert_image(self):
+        img = Image.open(self.input_ext)
+        img = img.convert("RGB")
+        img.save(self.output_ext)
+
+    # ----------
+    # office - still has the original bug (Document not imported), not
+    # touched in this round
+
+    def convert_office(self):
+        doc = Document(self.input_ext)
+        doc.save(self.output_ext)

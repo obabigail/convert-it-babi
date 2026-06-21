@@ -1,0 +1,43 @@
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"
+
+[theme.dark]
+primaryColor = "#1b9277"
+backgroundColor = "#030606"
+secondaryBackgroundColor = "#003519"
+textColor = "#dff6eb"
+
+linkColor = "#c900da"
+linkUnderline = true
+
+codeTextColor = "#f7d5f7"
+codeBackgroundColor = "#522451"
+
+font = "Nunito:https://fonts.googleapis.com/css2?family=Nunito&display=swap"
+headingFont = "'Bricolage Grotesque':https://fonts.googleapis.com/css2?family=Bricolage+Grotesque&display=swap"
+
+baseRadius = "medium"
+buttonRadius = "large"
+borderColor = "#98ffc9"
+
+[theme.light]
+primaryColor = "#8c199e"
+backgroundColor = "#fffafd"
+secondaryBackgroundColor = "#fee5fe"
+textColor = "#300b30"
+
+linkColor = "#8002a3"
+linkUnderline = true
+
+codeTextColor = "#300b30"
+codeBackgroundColor = "#fee5fe"
+
+font = "Nunito:https://fonts.googleapis.com/css2?family=Nunito&display=swap"
+headingFont = "'Bricolage Grotesque':https://fonts.googleapis.com/css2?family=Bricolage+Grotesque&display=swap"
+
+baseRadius = "medium"
+buttonRadius = "large"
+borderColor = "#b204b8"
