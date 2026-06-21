@@ -24,7 +24,7 @@ pip install streamlit soundfile miniaudio lameenc numpy pillow python-docx
 ## Usage
 
 ```bash
-streamlit run app.py
+streamlit run main.py
 ```
 
 Pick a file type, choose the input and output format, upload a file, and convert.
