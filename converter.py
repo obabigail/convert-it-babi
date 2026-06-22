@@ -11,6 +11,7 @@ import lameenc
 import miniaudio
 import numpy as np
 import soundfile as sf
+from docx import Document
 from PIL import Image
 
 # ----------
@@ -43,7 +44,7 @@ class FileConverter:
     def _image_format(ext: str) -> str:
         formats = {
             "png": "PNG",
-            "jpg": "JPG",
+            "jpg": "JPEG",
             "webp": "WEBP",
             "avif": "AVIF",
         }
@@ -144,14 +145,14 @@ class FileConverter:
 
         return self._write_audio(samples, sample_rate)
 
-    # ----------
-    # image - still has the original bugs (Image.open/img.save receiving
-    # extension strings instead of the file), not touched in this round
-
     def convert_image(self):
-        img = Image.open(self.input_ext)
-        img = img.convert("RGB")
-        img.save(self.output_ext)
+        img = Image.open(self.input_file)
+        if self.output_ext == "jpg":
+            img = img.convert("RGB")
+        output = BytesIO()
+        img.save(output, format=self._image_format(self.output_ext))
+        output.seek(0)
+        return output
 
     # ----------
     # office - still has the original bug (Document not imported), not
