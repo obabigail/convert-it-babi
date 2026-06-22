@@ -33,8 +33,12 @@ def _render_audio_converter():
         return
 
     if st.button("Convert Audio"):
-        converter = FileConverter(input_audio, input_type, output_type)
-        converted = converter.convert_audio()
+        try:
+            converter = FileConverter(input_audio, input_type, output_type)
+            converted = converter.convert_audio()
+        except Exception as exc:
+            st.error(f"Failed to convert image: {exc}")
+            return
 
         download_col, status_col = st.columns(2)
         with download_col:
@@ -55,7 +59,7 @@ def _render_image_converter():
     input_col, icon_col, output_col = st.columns([1.40, 0.20, 1.40])
 
     with input_col:
-        input_formats = ["png", "jpg", "webp", "avif"]
+        input_formats = ["png", "jpeg", "webp", "avif"]
         input_type = st.selectbox("Convert from", input_formats)
 
     with icon_col:
@@ -72,8 +76,12 @@ def _render_image_converter():
         return
 
     if st.button("Convert Image"):
-        converter = FileConverter(input_image, input_type, output_type)
-        converted = converter.convert_image()
+        try:
+            converter = FileConverter(input_image, input_type, output_type)
+            converted = converter.convert_image()
+        except Exception as exc:
+            st.error(f"Failed to convert image: {exc}")
+            return
 
         download_col, status_col = st.columns(2)
         with download_col:

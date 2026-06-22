@@ -44,10 +44,33 @@ class FileConverter:
     def _image_format(ext: str) -> str:
         formats = {
             "png": "PNG",
-            "jpg": "JPEG",
+            "jpeg": "JPEG",
             "webp": "WEBP",
             "avif": "AVIF",
         }
+
+        if ext not in formats:
+            raise ValueError(f"Unsupported image format: {ext}")
+
+        return formats[ext]
+
+    # helper method to get the office format for the output file
+    @staticmethod
+    def _office_format(ext: str) -> str:
+        formats = {
+            "doc": "DOC",
+            "docx": "DOCX",
+            "pdf": "PDF",
+            "xls": "XLS",
+            "ods": "ODS",
+            "odf": "ODF",
+            "ppt": "PPT",
+            "pptx": "PPTX",
+            "odt": "ODT",
+        }
+
+        if ext not in formats:
+            raise ValueError(f"Unsupported image format: {ext}")
 
         return formats[ext]
 
@@ -146,8 +169,9 @@ class FileConverter:
         return self._write_audio(samples, sample_rate)
 
     def convert_image(self):
+        self.input_file.seek(0)
         img = Image.open(self.input_file)
-        if self.output_ext == "jpg":
+        if self.output_ext == "jpeg":
             img = img.convert("RGB")
         output = BytesIO()
         img.save(output, format=self._image_format(self.output_ext))
@@ -159,5 +183,8 @@ class FileConverter:
     # touched in this round
 
     def convert_office(self):
-        doc = Document(self.input_ext)
-        doc.save(self.output_ext)
+        doc = Document(self.input_file)
+        output = BytesIO()
+        doc.save(output, format=self._office_format(self.output_ext))
+        output.seek(0)
+        return output
