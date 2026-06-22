@@ -71,6 +71,7 @@ class FileConverter:
     def _image_format(ext: str) -> str:
         formats = {
             "png": "PNG",
+            "jpg": "JPEG",
             "jpeg": "JPEG",
             "webp": "WEBP",
             "avif": "AVIF",
@@ -184,6 +185,7 @@ class FileConverter:
         - confirm whether the workaround should be Windows-only;
         - add tests for long OGG exports.
         """
+        self.input_file.seek(0)
         audio_format = self._audio_format(self.output_ext)
         output = BytesIO()
 
@@ -274,7 +276,7 @@ class FileConverter:
         """
         self.input_file.seek(0)
         img = Image.open(self.input_file)
-        if self.output_ext == "jpeg":
+        if self.output_ext == "jpg" or self.output_ext == "jpeg":
             img = img.convert("RGB")
         output = BytesIO()
         img.save(output, format=self._image_format(self.output_ext))
