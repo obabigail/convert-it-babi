@@ -17,9 +17,9 @@
 # ----------
 # imports
 
+import io
 import threading
 from io import BytesIO
-from pathlib import Path
 
 import lameenc
 import miniaudio
@@ -109,6 +109,7 @@ class FileConverter:
             "odf": "ODF",
             "ppt": "PPT",
             "pptx": "PPTX",
+            "txt": "TXT",
             "odt": "ODT",
         }
 
@@ -299,12 +300,33 @@ class FileConverter:
     # of pretending to convert documents.
 
     def convert_office(self):
-        self.input_file.seek(0)
-        doc = Document(self.input_file)
-        output = BytesIO()
-        doc.save(output, format=self._office_format(self.output_ext))
-        output.seek(0)
-        return output
+        if self.input_ext in ["md", "txt"] and self.output_ext in ["md", "txt"]:
+            self.input_file.seek(0)
+            doc = self.input_file.read()
+            text = doc.decode("utf-8")
+
+            output = BytesIO()
+            output.write(text.encode("utf-8"))
+            output.seek(0)
+
+            return output
+        elif self.input_ext in ["docx", "doc"] or self.output_ext in ["docx", "doc"]:
+            self.input_file.seek(0)
+            doc = Document(self.input_file)
+
+            content = []
+
+            for paragraph in doc.paragraphs:
+                content.append(paragraph.text)
+
+            output = "\n".join(content)
+
+            document = BytesIO()
+
+            output.save(document)
+            document.seek(0)
+
+            return output
 
     # ----------
     # video

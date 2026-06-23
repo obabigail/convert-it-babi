@@ -57,7 +57,7 @@ def _render_audio_converter():
                 label="Download converted audio",
                 data=converted,
                 file_name=f"{file_name}.{output_type}",
-                mime=f"{file_name}.{output_type}",
+                mime=f"audio/{output_type}",
             )
         with status_col:
             if converted is not None:
@@ -155,7 +155,7 @@ def _render_image_converter():
                 label="Download converted image",
                 data=converted,
                 file_name=f"{file_name}.{output_type}",
-                mime=f"{file_name}.{output_type}",
+                mime=f"image/{output_type}",
             )
         with status_col:
             if converted is not None:
@@ -166,58 +166,63 @@ def _render_image_converter():
 
 # documents (not implemented)
 def _render_office_converter():
-    # input_col, icon_col, output_col = st.columns([1.40, 0.20, 1.40])
+    st.write("Implemented in this version:")
+    st.markdown("<li><ol>.txt <-> .md</ol></li>", unsafe_allow_html=True)
 
-    # with input_col:
-    #     input_formats = [
-    #         "docx",
-    #         "xlsx",
-    #         "pptx",
-    #         "pdf",
-    #         "ods",
-    #         "odf",
-    #         "odt",
-    #         "tex",
-    #         "txt",
-    #         "md",
-    #     ]
-    #     input_type = st.selectbox("Convert from", input_formats)
+    input_col, icon_col, output_col = st.columns([1.40, 0.20, 1.40])
 
-    # with icon_col:
-    #     st.write(":material/double_arrow:")
+    with input_col:
+        input_formats = [
+            "docx",
+            "xlsx",
+            "pptx",
+            "pdf",
+            "ods",
+            "odf",
+            "odt",
+            "tex",
+            "txt",
+            "md",
+        ]
+        input_type = st.selectbox("Convert from", input_formats)
 
-    # with output_col:
-    #     input_formats.remove(input_type)
-    #     output_formats = input_formats
-    #     output_type = st.selectbox("Convert to", output_formats)
+    with icon_col:
+        st.write(":material/double_arrow:")
 
-    # input_doc = st.file_uploader("Upload Document", type=[input_type])
+    with output_col:
+        input_formats.remove(input_type)
+        output_formats = input_formats
+        output_type = st.selectbox("Convert to", output_formats)
 
-    # if input_doc is None:
-    #     return
+    input_doc = st.file_uploader("Upload Document", type=[input_type])
 
-    # if st.button("Convert Document"):
-    #     try:
-    #         converter = FileConverter(input_doc, input_type, output_type)
-    #         converted = converter.convert_office()
-    #     except Exception as exc:
-    #         st.error(f"Failed to convert document: {exc}")
-    #         return
+    if input_doc is not None:
+        file_name = input_doc.name.replace(f".{input_type}", "")
+        st.caption(file_name)
+    else:
+        return
 
-    #     download_col, status_col = st.columns(2)
-    #     with download_col:
-    #         st.download_button(
-    #             label="Download converted document",
-    #             data=converted,
-    #             file_name=f"converted.{output_type}",
-    #             mime=f"document/{output_type}",
-    #         )
-    #     with status_col:
-    #         if converted is not None:
-    #             st.success("Document converted successfully!")
-    #         else:
-    #             st.error("Failed to convert document.")
-    st.info("This feature is not yet implemented.")
+    if st.button("Convert Document"):
+        try:
+            converter = FileConverter(input_doc, input_type, output_type)
+            converted = converter.convert_office()
+        except Exception as exc:
+            st.error(f"Failed to convert document: {exc}")
+            return
+
+        download_col, status_col = st.columns(2)
+        with download_col:
+            st.download_button(
+                label="Download converted document",
+                data=converted,
+                file_name=f"{file_name}.{output_type}",
+                mime=f"document/{output_type}",
+            )
+        with status_col:
+            if converted is not None:
+                st.success("Document converted successfully!")
+            else:
+                st.error("Failed to convert document.")
 
 
 # ----------------------------
