@@ -26,6 +26,7 @@ import miniaudio
 import numpy as np
 import soundfile as sf
 from docx import Document
+from moviepy.editor import VideoFileClip
 from PIL import Image
 
 # ----------
@@ -300,6 +301,7 @@ class FileConverter:
     # of pretending to convert documents.
 
     def convert_office(self):
+        # txt <-> md - simple text read/write with utf-8 encoding
         if self.input_ext in ["md", "txt"] and self.output_ext in ["md", "txt"]:
             self.input_file.seek(0)
             doc = self.input_file.read()
@@ -310,7 +312,8 @@ class FileConverter:
             output.seek(0)
 
             return output
-        elif self.input_ext in ["docx", "doc"] or self.output_ext in ["docx", "doc"]:
+        # doc/docx <-> doc/docx - python-docx
+        elif self.input_ext in ["docx", "doc"] and self.output_ext in ["docx", "doc"]:
             self.input_file.seek(0)
             doc = Document(self.input_file)
 
@@ -319,12 +322,44 @@ class FileConverter:
             for paragraph in doc.paragraphs:
                 content.append(paragraph.text)
 
-            output = "\n".join(content)
+            document = "\n".join(content)
 
-            document = BytesIO()
+            output = BytesIO()
 
-            output.save(document)
-            document.seek(0)
+            output.write(document.encode("utf-8"))
+            output.seek(0)
+
+            return output
+        # doc/docx -> txt/md - python-docx
+        elif self.input_ext in ["docx", "doc"] and self.output_ext in ["txt", "md"]:
+            self.input_file.seek(0)
+            doc = Document(self.input_file)
+
+            content = []
+
+            for paragraph in doc.paragraphs:
+                content.append(paragraph.text)
+
+            document = "\n".join(content)
+
+            output = BytesIO()
+
+            output.write(document.encode("utf-8"))
+            output.seek(0)
+
+            return output
+        # txt/md -> doc/docx - python-docx
+        elif self.input_ext in ["txt", "md"] and self.output_ext in ["docx", "doc"]:
+            self.input_file.seek(0)
+            text = self.input_file.read().decode("utf-8")
+
+            doc = Document()
+            for line in text.splitlines():
+                doc.add_paragraph(line)
+
+            output = BytesIO()
+            doc.save(output)
+            output.seek(0)
 
             return output
 
@@ -343,3 +378,12 @@ class FileConverter:
     #   ffmpeg executable installed on the user's machine";
     # - if FFmpeg libraries are also forbidden, full video transcoding should
     #   be marked unsupported.
+    def convert_video(self):
+        self.input_file.seek(0)
+        with VideoFileClip(self.input_file) as video:
+            # Write the video file with the new extension
+            # Audio track is included automatically
+            output = BytesIO()
+            output_path = f"output.{self.output_ext}"
+            video.write_videofile(output_path, codec="libx264", audio_codec="aac")
+            output.seek(0)

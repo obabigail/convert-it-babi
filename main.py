@@ -167,7 +167,10 @@ def _render_image_converter():
 # documents (not implemented)
 def _render_office_converter():
     st.write("Implemented in this version:")
-    st.markdown("<li><ol>.txt <-> .md</ol></li>", unsafe_allow_html=True)
+    st.markdown(
+        "<li><ol>.txt <-> .md</ol><ol>.docx <-> txt/md</ol></li>",
+        unsafe_allow_html=True,
+    )
 
     input_col, icon_col, output_col = st.columns([1.40, 0.20, 1.40])
 
